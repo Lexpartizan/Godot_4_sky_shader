@@ -1,0 +1,33 @@
+[gd_scene load_steps=6 format=3 uid="uid://dmcvxg6yo0n8l"]
+
+[ext_resource type="PackedScene" uid="uid://r3hg0l4mi1mi" path="res://Sky.tscn" id="1_etuev"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_cv2l6"]
+size = Vector3(100, 1, 100)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_s7720"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_8d8fv"]
+radius = 5.0
+height = 10.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_nvmod"]
+metallic = 1.0
+roughness = 0.0
+
+[node name="Sky" type="Node3D"]
+
+[node name="sky" parent="." instance=ExtResource("1_etuev")]
+time_of_day_setup = 0.357
+clouds_soft = 0.5
+wind_direction = Vector2(0.707107, 0.707107)
+moon_tint = Color(1, 1, 1, 1)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_cv2l6")
+surface_material_override/0 = SubResource("StandardMaterial3D_s7720")
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.8208, 6.52507, 0)
+mesh = SubResource("SphereMesh_8d8fv")
+surface_material_override/0 = SubResource("StandardMaterial3D_nvmod")
