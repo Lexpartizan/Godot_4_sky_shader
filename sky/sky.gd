@@ -8,11 +8,6 @@ var moon_pos: Vector3;
 @onready var sun_moon: DirectionalLight3D = $sun_moon;
 @onready var thunder_sound: AudioStreamPlayer = $thunder;
 @onready var sky_shader: ShaderMaterial = environment.sky.sky_material;
-@export var lighting_pos: Vector3 = Vector3(0.0,1.0,0.0):
-	set(value):
-		lighting_pos = value.normalized();
-		if is_inside_tree():
-			sky_shader.set_shader_parameter("LIGHTING_POS",lighting_pos);
 @export_range(0.0, 1.0) var time_of_day_setup: float  = 0.0:
 	get:
 		return time_of_day_setup;
@@ -98,6 +93,11 @@ var moon_pos: Vector3;
 @export var sunset_range: float = 0.2;
 @export_range(0.0, 1.0, 0.01) var night_level_light: float = 0.05;
 var lighting_time: float=0.0;
+@export var lighting_pos: Vector3 = Vector3(0.0,1.0,0.0):
+	set(value):
+		lighting_pos = value.normalized();
+		if is_inside_tree():
+			sky_shader.set_shader_parameter("LIGHTING_POS",lighting_pos);
 @export var lighting_strike: bool = false:
 	set(value):
 		if (!is_inside_tree()):
