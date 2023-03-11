@@ -1,5 +1,5 @@
 shader_type sky;
-render_mode use_half_res_pass;
+render_mode use_quarter_res_pass;
 uniform sampler2D star_sky;
 uniform sampler2D moon;
 uniform vec4 moon_tint: source_color;
@@ -13,11 +13,10 @@ uniform float lighting_strength;
 
 uniform float MOON_PHASE:hint_range(-1.1,1.1);
 uniform float moon_size:hint_range(0.0,0.5);
-uniform float sun_radius:hint_range(0.0,0.3);
 uniform float attenuation:hint_range(0.0,1.0);
 
-// USING https://www.shadertoy.com/view/XtBXDw for 3dclouds and https://www.shadertoy.com/view/4dsXWn for 2d clouds
-uniform vec3 WIND; //wind_vec*wind_str направление ветра, вектор*силу ветра
+// USING https://www.shadertoy.com/view/XtBXDw for 3dclouds
+uniform vec3 WIND; //wind_vec*wind_str
 uniform float SIZE :hint_range(0.0,10.0); //0.5
 uniform float SOFTNESS :hint_range(0.0,10.0); //0.5
 uniform float COVERAGE :hint_range(0.0,1.0); //0.5
@@ -26,15 +25,17 @@ uniform float THICKNESS :hint_range(0.0,100.0); //25.
 uniform float ABSORPTION :hint_range(0.0,10.0); //1.030725
 uniform int STEPS :hint_range(0,100); //25
 
-lowp float noise( in lowp vec3 pos )
-{
-    pos*=0.01;
-	lowp float  z = pos.z*256.0;
-	lowp vec2 offz = vec2(0.317,0.123);
-	lowp vec2 uv = pos.xy + offz*floor(z);
-	return mix(textureLod( moon, uv ,0.0).b,textureLod( moon, uv+offz ,0.0).b,fract(z));
-}
+//lowp float hash(lowp vec3 p3) {p3  = fract(p3 * .1031); p3 += dot(p3, p3.zyx + 31.32); return fract((p3.x + p3.y) * p3.z);}
 
+lowp float hash(lowp vec3 p) {p  = fract( p*0.3183099+0.1 )*17.0;return fract( p.x*p.y*p.z*(p.x+p.y+p.z) );}
+lowp float noise( lowp vec3 pos )
+{
+    lowp vec3 i = floor(pos); lowp vec3 f = fract(pos); f = f*f*(3.0-2.0*f);
+	return mix(mix(mix( hash(i+vec3(0,0,0)), hash(i+vec3(1,0,0)),f.x),
+                   mix( hash(i+vec3(0,1,0)), hash(i+vec3(1,1,0)),f.x),f.y),
+               mix(mix( hash(i+vec3(0,0,1)), hash(i+vec3(1,0,1)),f.x),
+                   mix( hash(i+vec3(0,1,1)), hash(i+vec3(1,1,1)),f.x),f.y),f.z);
+}
 lowp float get_noise(lowp vec3 p, lowp float FBM_FREQ)
 {
 	lowp float
@@ -102,30 +103,19 @@ lowp vec4 clouds_3d(lowp vec3 ro, lowp vec3 rd, lowp vec3 wind)
 		return vec4(clouds,alpha);
 }
 
-lowp vec3 cube_bot(lowp vec3 p, lowp vec3 c1, lowp vec3 c2, lowp float time)
-{
-	lowp float f = 0.0;
-	f += .50000 * noise(.5 * (p+vec3(0.,0.,-time*0.275)));
-	f += .25000 * noise(1. * (p+vec3(0.,0.,-time*0.275)));
-	f += .12500 * noise(2. * (p+vec3(0.,0.,-time*0.275)));
-	f += .06250 * noise(4. * (p+vec3(0.,0.,-time*0.275)));
-	return  f* mix(c1, c2, p * .5 + .5);
-}
-
 lowp vec3 extra_cheap_atmosphere(vec3 raydir, vec3 sundir) //https://www.shadertoy.com/view/MtBcz1
 {
 	sundir.y = max(sundir.y, -0.07);
-	lowp float special_trick = 1.0 / (raydir.y + 0.2);
-	//special_trick = 1.0 / (raydir.y * 1.0 + 0.1);//original code
+	lowp float special_trick = 1.0 / (raydir.y + 0.2);//special_trick = 1.0 / (raydir.y * 1.0 + 0.1);//original code
 	lowp float special_trick2 = 1.0 / (sundir.y * 11.0 + 1.0);
-	lowp float raysundt = pow(abs(dot(sundir, raydir)), 2.0);
-	lowp float sundt = pow(max(0.0, dot(sundir, raydir)), 8.0);
-	lowp float mymie = sundt * special_trick * 0.2;
-	lowp vec3 suncolor = mix(vec3(1.0), max(vec3(0.0), vec3(1.0) - vec3(5.5, 13.0, 22.4) / 22.4), special_trick2); //original code
-	lowp vec3 sky = max(vec3(0.0), vec3(5.5, 13.0, 22.4) / 22.4 * suncolor - vec3(5.5, 13.0, 22.4) * 0.004 * (special_trick + -6.0 * sundir.y * sundir.y));//original code
-	sky *= special_trick * (0.24 + raysundt * 0.24);
+	lowp vec3 magic_sky_color = vec3(0.245535, 0.580357, 1.0);
+	lowp float sun_dist = max(0.0,dot(sundir, raydir));
+	lowp float mymie = pow(sun_dist, 8.0) * special_trick * 0.33;//original 0.2
+	lowp vec3 suncolor = mix(vec3(1.0), max(vec3(0.0), vec3(1.0) - magic_sky_color), special_trick2);
+	lowp vec3 sky = max(vec3(0.0), magic_sky_color * suncolor - magic_sky_color * 0.0896 * (special_trick + -6.0 * sundir.y * sundir.y));
+	sky *= special_trick * (0.24 + pow(sun_dist, 2.0) * 0.24);
 	sky = sky + mymie * suncolor;
-	sky += smoothstep(0.997, 0.999, dot(raydir, sundir));//sun_disk
+	sky += smoothstep(0.998, 0.9999, sun_dist);//sun_disk
 	return clamp(sky,0.0,1.0);
 } 
 
@@ -133,8 +123,9 @@ lowp vec2 uv_sphere(lowp vec3 rd, lowp vec3 pos, lowp float scale) //someone els
 {
 	lowp vec3 ord = normalize(rd + 2.0*cross(pos, cross(pos, rd)));
 	vec2 uv =vec2(atan(ord.x,ord.y),acos(ord.z));
-	if (uv.x<0.0) uv.x+=3.1415926536*2.0;
-	uv /= vec2(3.1415926536*2.0, 3.1415926536);
+	//if (uv.x<0.0) uv.x+=3.1415926536*2.0
+	uv.x+=PI*2.0*step(0.0,uv.x);
+	uv /= vec2(PI*2.0, PI);
 	uv=(uv-0.5)/scale+0.5;
 	uv.x*=2.0;uv.x-=0.5;
 	return uv;
@@ -164,21 +155,24 @@ void sky() {
 	lowp vec3 ro = vec3(0.0, -200.0*HEIGHT+40.0, 0.0); //This is the vector of displacement of the sphere relative to zero coordinates. Here you can set the height of the clouds. That is, to make a sphere with clouds higher or lower.
 	lowp vec4 cld;
 	bool quality_res_cloud;
-	if (AT_HALF_RES_PASS)
+	if (AT_QUARTER_RES_PASS)
 	{
 		lowp float skyPow = dot(rd, vec3(0.0, -1.0, 0.0));
 		lowp float horizonPow =1.0-pow(1.0-abs(skyPow), 5.0);
 		lowp float horizon_line = clamp((1.0 - exp(-10. * pow(max((0.0), horizonPow), (2.6)))),0.0,1.0);//Here we dissolve the clouds in the horizon for a smooth transition to the horizon line.
-		if (rd.y>0.0) {cld=clouds_3d(ro,rd,WIND*TIME/SIZE);}
-		else{cld.rgb = cube_bot(rd,vec3(1.5,1.49,1.71), vec3(1.1,1.15,1.5),TIME); cld.a = 1.0;}
+		if (rd.y>0.0) 
+			{cld=clouds_3d(ro,rd,WIND*TIME/SIZE);}
+		else
+			//{cld.rgb = cube_bot(rd,vec3(1.5,1.49,1.71), vec3(1.1,1.15,1.5),TIME); cld.a = 1.0;}
+			{cld.rgb = vec3(get_noise(rd+WIND*TIME,3.0));cld.a =1.0;;}
 		cld*=horizon_line;
 		COLOR = vec3(cld.r,cld.a,0.0);
 	}
 	else 
 	{
 	lowp vec4 clouds;
-	clouds.rgb = HALF_RES_COLOR.r*clouds_tint.rgb*attenuation;
-	clouds.a = HALF_RES_COLOR.g;
+	clouds.rgb = QUARTER_RES_COLOR.r*clouds_tint.rgb*attenuation;
+	clouds.a = QUARTER_RES_COLOR.g;
 	lowp vec3 sky;
 	sky = extra_cheap_atmosphere(rd,SUN_POS);
 	sky = mix (vec3(0.0),sky,smoothstep(-0.1,0.0,rd.y));
@@ -186,6 +180,6 @@ void sky() {
 	lowp float lighting = clamp (0.5+texture(moon,LIGHTING_POS.xz-rd.xz+0.5).g*smoothstep(0.6,0.3,length(LIGHTING_POS-rd)),0.0,1.0);
 	sky = mix (sky.rgb, vec3(lighting),lighting_strength); //flash of light in the sky simulates a lightning strike
 	sky = mix(sky, clouds.rgb/(0.0001+clouds.a), clouds.a);
-	COLOR = sky;
+	COLOR = sky;	
 	}
 }
