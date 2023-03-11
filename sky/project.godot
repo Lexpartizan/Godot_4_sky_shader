@@ -18,3 +18,4 @@ config/icon="res://icon.svg"
 [rendering]
 
 renderer/rendering_method="mobile"
+textures/canvas_textures/default_texture_repeat=1
