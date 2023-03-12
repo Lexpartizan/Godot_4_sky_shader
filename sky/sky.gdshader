@@ -124,17 +124,36 @@ lowp vec2 uv_sphere(lowp vec3 rd, lowp vec3 pos, lowp float scale) //someone els
 	lowp vec3 ord = normalize(rd + 2.0*cross(pos, cross(pos, rd)));
 	vec2 uv =vec2(atan(ord.x,ord.y),acos(ord.z));
 	//if (uv.x<0.0) uv.x+=3.1415926536*2.0
-	uv.x+=PI*2.0*step(0.0,uv.x);
+	uv.x+=PI*2.0*float(uv.x<0.0);
 	uv /= vec2(PI*2.0, PI);
 	uv=(uv-0.5)/scale+0.5;
 	uv.x*=2.0;uv.x-=0.5;
 	return uv;
 }
 
+lowp vec3 rotate_y(lowp vec3 v, lowp float angle)
+{
+	lowp float ca = cos(angle); lowp float sa = sin(angle);
+	return v*mat3(
+		vec3(+ca, +.0, -sa),
+		vec3(+.0,+1.0, +.0),
+		vec3(+sa, +.0, +ca));
+}
+
+lowp vec3 rotate_x(lowp vec3 v, lowp float angle)
+{
+	lowp float ca = cos(angle); lowp float sa = sin(angle);
+	return v*mat3(
+		vec3(+1.0, +.0, +.0),
+		vec3(+.0, +ca, -sa),
+		vec3(+.0, +sa, +ca));
+}
+
 lowp vec2 draw_moon(lowp vec3 rd) 
 {
 	lowp vec2 uv=uv_sphere(rd,MOON_TEX_POS,moon_size);
-	lowp float moon_amount = texture(moon,uv).r*smoothstep(moon_size*1.44,moon_size*1.0,length(MOON_POS-rd));//+min(pow(max(dot(rd, MOON_POS), 0.0), 500.0/moon_radius) * 100.0, 1.0);
+	lowp float moon_amount = texture(moon,uv).r;
+	moon_amount *= 1.0-smoothstep(moon_size*1.0,moon_size*1.4,length(MOON_POS-rd));//+min(pow(max(dot(rd, MOON_POS), 0.0), 500.0/moon_radius) * 100.0, 1.0);
 	lowp float moon_mask = moon_amount;
 	moon_amount*=1.0 - attenuation; //attenuation of the brightness of the moon (for sunrise and sunset).
 	moon_amount = clamp(mix (0.0,moon_amount,smoothstep(0.9,1.0,(1.0-moon_size)*0.5+length(MOON_POS-rd+MOON_PHASE)*(1.0-moon_size*0.75))),0.001,1.0);//here we cast a shadow on the moon. moon phase. 	
@@ -145,7 +164,7 @@ lowp vec3 draw_night_sky (lowp float sky_amount, lowp vec3 rd, lowp vec2 sky_coo
 {
 	lowp vec2 moon_amount = draw_moon(rd);
 	lowp float stars = texture(star_sky,sky_coords).r; // mipmap off for correct steching; starfield texture from this https://opengameart.org/content/night-sky-skybox-generator ande convert to panorama with this https://danilw.github.io/GLSL-howto/cubemap_to_panorama_js/cubemap_to_panorama.html
-	stars *= step(max (max(cld_alpha, sky_amount),moon_amount.y),0.001);
+	stars *= step(max (max(cld_alpha, sky_amount),moon_amount.y),0.01);
 	return stars + moon_tint.rgb*moon_amount.x*(clamp(1.0-cld_alpha-0.2,0.0,1.0));//Here we mix with the clouds so that there is no black border. But so that the Moon does not Shine through the clouds.
 }
 
