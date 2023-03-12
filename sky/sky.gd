@@ -3,8 +3,7 @@ extends WorldEnvironment
 
 var time_of_day: float = 0.0;
 var one_second: float = 1.0 / (24.0 * 60.0 * 60.0); # --- What part of a second takes in a day in the range from 0 to 1
-var sun_pos: Vector3;
-var moon_pos: Vector3;
+
 @onready var sun_moon: DirectionalLight3D = $sun_moon;
 @onready var thunder_sound: AudioStreamPlayer = $thunder;
 @onready var sky_shader: ShaderMaterial = environment.sky.sky_material;
@@ -32,6 +31,20 @@ var moon_pos: Vector3;
 	set(value):
 		seconds = value;
 		set_time_of_day((hours*3600+minutes*60+seconds)*one_second);
+#here you can change the start position of the Sun and Moon and axis of rotation
+@export var sun_pos_default: Vector3 = Vector3(0.0,-1.0,0.0):
+	set(value):
+		sun_pos_default = value.normalized();
+@export var sun_axis_rotation: Vector3 = Vector3(1.0,0.0,0.0):
+	set(value):
+		sun_axis_rotation = value.normalized();
+#For the Moon, you cannot change the rotation axis and position, since I did not find a cheap method to correctly display the sprite on the sky sphere.
+var moon_pos_default: Vector3 = Vector3(0.0,1.0,0.0): 
+	set(value):
+		moon_pos_default = value.normalized();
+var moon_axis_rotation: Vector3 = Vector3(1.0,0.0,0.0):
+	set(value):
+		moon_axis_rotation = value.normalized();
 
 @export_range(0.0, 1.0, 0.01) var clouds_coverage: float = 0.5:
 	set(value):
@@ -135,9 +148,8 @@ func set_time():
 		return;
 	var light_color: Color = Color(1.0,1.0,1.0,1.0);
 	var phi: float = time_of_day * 2.0 * PI;
-
-	sun_pos = Vector3(0.0,-1.0,0.0).normalized().rotated(Vector3(1.0,0.0,0.0).normalized(),phi) #here you can change the start position of the Sun and axis of rotation
-	moon_pos = Vector3(0.0,1.0,0.0).normalized().rotated(Vector3(1.0,0.0,0.0).normalized(),phi) #Same for Moon
+	var sun_pos: Vector3 = sun_pos_default.rotated(sun_axis_rotation,phi) #here you can change the start position of the Sun and axis of rotation
+	var moon_pos:Vector3 = moon_pos_default.rotated(moon_axis_rotation,phi) #Same for Moon
 	var moon_tex_pos: Vector3 = Vector3(0.0,1.0,0.0).normalized().rotated(Vector3(1.0,0.0,0.0).normalized(),(phi+PI)*0.5) #This magical formula for shader
 	var light_energy: float = smoothstep(sunset_offset,0.4, sun_pos.y);# light intensity depending on the height of the sun
 	light_energy = clamp(light_energy, night_level_light, 2.0);
