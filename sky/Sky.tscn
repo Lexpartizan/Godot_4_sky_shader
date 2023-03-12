@@ -51,7 +51,7 @@ script = ExtResource("4_cuqt8")
 moon_tint = Color(1, 0.643137, 0.152941, 1)
 
 [node name="sun_moon" type="DirectionalLight3D" parent="."]
-transform = Transform3D(-1, 7.57104e-08, -4.37114e-08, 0, 0.5, 0.866026, 8.74228e-08, 0.866026, -0.5, 0, 0.866025, -0.5)
+transform = Transform3D(-1, 7.57104e-08, -4.37114e-08, 0, 0.500001, 0.866026, 8.74228e-08, 0.866026, -0.500001, 0, 0.866025, -0.5)
 light_color = Color(0.6, 0.6, 0.8, 1)
 light_energy = 0.0375
 
