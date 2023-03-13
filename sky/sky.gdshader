@@ -24,17 +24,15 @@ uniform float HEIGHT :hint_range(0.0,1.0); //0.0
 uniform float THICKNESS :hint_range(0.0,100.0); //25.
 uniform float ABSORPTION :hint_range(0.0,10.0); //1.030725
 uniform int STEPS :hint_range(0,100); //25
-
 //lowp float hash(lowp vec3 p3) {p3  = fract(p3 * .1031); p3 += dot(p3, p3.zyx + 31.32); return fract((p3.x + p3.y) * p3.z);}
-
 lowp float hash(lowp vec3 p) {p  = fract( p*0.3183099+0.1 )*17.0;return fract( p.x*p.y*p.z*(p.x+p.y+p.z) );}
 lowp float noise( lowp vec3 pos )
 {
     lowp vec3 i = floor(pos); lowp vec3 f = fract(pos); f = f*f*(3.0-2.0*f);
 	return mix(mix(mix( hash(i+vec3(0,0,0)), hash(i+vec3(1,0,0)),f.x),
-                   mix( hash(i+vec3(0,1,0)), hash(i+vec3(1,1,0)),f.x),f.y),
-               mix(mix( hash(i+vec3(0,0,1)), hash(i+vec3(1,0,1)),f.x),
-                   mix( hash(i+vec3(0,1,1)), hash(i+vec3(1,1,1)),f.x),f.y),f.z);
+					mix( hash(i+vec3(0,1,0)), hash(i+vec3(1,1,0)),f.x),f.y),
+					mix(mix( hash(i+vec3(0,0,1)), hash(i+vec3(1,0,1)),f.x),
+					mix( hash(i+vec3(0,1,1)), hash(i+vec3(1,1,1)),f.x),f.y),f.z);
 }
 lowp float get_noise(lowp vec3 p, lowp float FBM_FREQ)
 {
@@ -48,22 +46,22 @@ lowp float get_noise(lowp vec3 p, lowp float FBM_FREQ)
 
 bool SphereIntersect(lowp vec3 apos, lowp float arad, lowp vec3 ro, lowp vec3 rd, out lowp vec3 norm)
 {
-    ro -= apos;
-    lowp float A = dot(rd, rd);
-    lowp float B = 2.0*dot(ro, rd);
-    lowp float C = dot(ro, ro)-arad*arad;
-    lowp float D = B*B-4.0*A*C;
-    if (D < 0.0) return false;
-    D = sqrt(D);
-    A *= 2.0;
-    lowp float t1 = (-B+D)/A;
-    lowp float t2 = (-B-D)/A;
-    if (t1 < 0.0) t1 = t2;
-    if (t2 < 0.0) t2 = t1;
-    t1 = min(t1, t2);
-    if (t1 < 0.0) return false;
-    norm = ro+t1*rd;
-    return true;
+	ro -= apos;
+	//lowp float A = dot(rd, rd);
+	lowp float B = 2.0*dot(ro, rd);
+	lowp float C = dot(ro, ro)-arad*arad;
+	lowp float D = B*B-4.0*C;//lowp float D = B*B-4.0*A*C;
+	if (D < 0.0) return false;
+	D = sqrt(D);
+	//A *= 2.0;
+	lowp float t1 = (-B+D)*0.5;//lowp float t1 = (-B+D)/A;
+	lowp float t2 = (-B-D)*0.5;//lowp float t2 = (-B-D)/A;
+	lowp float if_op = float(t1 < 0.0); t1 =t1*(1.0-if_op)+t2*if_op;//if (t1 < 0.0) t1 = t2;
+	if_op = float(t2 < 0.0); t2 =t2*(1.0-if_op)+t1*if_op; //if (t2 < 0.0) t2 = t1;
+	t1 = min(t1, t2);
+	if (t1 < 0.0) return false;
+	norm = ro+t1*rd;
+	return true;
 }
 
 lowp float density(lowp vec3 pos, lowp vec3 offset)
@@ -78,26 +76,27 @@ lowp vec4 clouds_3d(lowp vec3 ro, lowp vec3 rd, lowp vec3 wind)
 {
 	lowp vec3 apos=vec3(0, -450, 0);
 	lowp float arad=500.0;
-    lowp vec3 clouds = vec3(0.0);
+	lowp vec3 clouds = vec3(0.0);
 	lowp float alpha = 0.0;
-    lowp vec3 norm;
-    if(SphereIntersect(apos,arad,ro,rd,norm)){
-        lowp int steps = STEPS;
-        lowp float march_step = THICKNESS / float(steps);
-        lowp vec3 dir_step = rd / rd.y * march_step;
-        lowp vec3 pos =norm;
-        lowp float T = 1.0;
-        for (int i = 0; i < steps; i++)
-		 {
-            if (length(pos) > 1e3) break;
-		lowp float dens = density (pos, wind)*march_step;
-		lowp float T_i = exp(-ABSORPTION * dens);
-            T *= T_i;
-          if (T < .01) break;
-		lowp float h = float(i) / float(steps);
-        clouds += T * (exp(h)/2.0 ) *dens;
-		alpha += (1. - T_i) * (1. - alpha);
-            pos += dir_step;
+	lowp vec3 norm;
+	if(SphereIntersect(apos,arad,ro,rd,norm))
+	{
+		lowp int steps = STEPS;
+		lowp float march_step = THICKNESS / float(steps);
+		lowp vec3 dir_step = rd / rd.y * march_step;
+		lowp vec3 pos =norm;
+		lowp float T = 1.0;
+		for (int i = 0; i < steps; i++)
+			{
+			if (length(pos) > 1e3) break;
+			lowp float dens = density (pos, wind)*march_step;
+			lowp float T_i = exp(-ABSORPTION * dens);
+			T *= T_i;
+			if (T < .01) break;
+			lowp float h = float(i) / float(steps);
+			clouds += T * (exp(h)/2.0 ) *dens;
+			alpha += (1. - T_i) * (1. - alpha);
+			pos += dir_step;
 			}
 		}
 		return vec4(clouds,alpha);
@@ -115,7 +114,10 @@ lowp vec3 extra_cheap_atmosphere(vec3 raydir, vec3 sundir) //https://www.shadert
 	lowp vec3 sky = max(vec3(0.0), magic_sky_color * suncolor - magic_sky_color * 0.0896 * (special_trick + -6.0 * sundir.y * sundir.y));
 	sky *= special_trick * (0.24 + pow(sun_dist, 2.0) * 0.24);
 	sky = sky + mymie * suncolor;
-	sky += smoothstep(0.998, 0.9999, sun_dist);//sun_disk
+	//sky += vec3(1.0 * smoothstep(0.1,0.0, acos(sun_dist)));
+	lowp float sun =0.0;
+	sun=pow(sun_dist,2048.0);//smoothstep(0.998, 0.99999, sun_dist);//sun_disk
+	sky += sun;
 	return clamp(sky,0.0,1.0);
 } 
 
@@ -129,24 +131,6 @@ lowp vec2 uv_sphere(lowp vec3 rd, lowp vec3 pos, lowp float scale) //someone els
 	uv=(uv-0.5)/scale+0.5;
 	uv.x*=2.0;uv.x-=0.5;
 	return uv;
-}
-
-lowp vec3 rotate_y(lowp vec3 v, lowp float angle)
-{
-	lowp float ca = cos(angle); lowp float sa = sin(angle);
-	return v*mat3(
-		vec3(+ca, +.0, -sa),
-		vec3(+.0,+1.0, +.0),
-		vec3(+sa, +.0, +ca));
-}
-
-lowp vec3 rotate_x(lowp vec3 v, lowp float angle)
-{
-	lowp float ca = cos(angle); lowp float sa = sin(angle);
-	return v*mat3(
-		vec3(+1.0, +.0, +.0),
-		vec3(+.0, +ca, -sa),
-		vec3(+.0, +sa, +ca));
 }
 
 lowp vec2 draw_moon(lowp vec3 rd) 
