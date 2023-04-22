@@ -8,6 +8,10 @@ Sorry it took me so long to do an adaptation, but you must have heard that there
 
 #STAND WITH UKRAINE
 
+
+!!!!!We have problem with Vulkan drivers on new Nvidia series graphics cards.!!!!
+https://github.com/godotengine/godot/issues/76343
+
 Complete feature list
 * day-night-cycle
 * Sun
